@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BKL Shipment Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET & BASE ────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f6f5f1;--surf:#fff;--bdr:#e4e1d9;--bdr2:#ccc9bf;
+  --ink:#18170f;--ink2:#6a6760;--ink3:#aaa89f;
+  --G:#1a3a2a;--G2:#2d6a4f;--G3:#e1f0e8;
+  --A:#7c4f0a;--A2:#fef3c7;--A3:#fcd34d;
+  --R:#b91c1c;--R2:#fee2e2;--B:#1e3a5f;--B2:#dbeafe;
+  --grey:#f1f0ec;--r:6px;--r2:10px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5}
+input,select,button{font-family:'DM Sans',sans-serif;font-size:12px;color:var(--ink)}
+
+/* ── TOPBAR ─────────────────────────────────────────── */
+.topbar{background:var(--G);height:50px;display:flex;align-items:center;padding:0 20px;justify-content:space-between;position:sticky;top:0;z-index:100}
+.tb-brand{font-size:14px;font-weight:500;color:#fff}
+.tb-brand small{font-size:11px;font-weight:400;opacity:.45;margin-left:8px;text-transform:uppercase;letter-spacing:.06em}
+.tb-right{display:flex;align-items:center;gap:8px}
+.tb-tabs{display:flex;gap:2px}
+.tb-tab{padding:5px 13px;border-radius:var(--r);font-size:12px;cursor:pointer;color:rgba(255,255,255,.55);border:none;background:none}
+.tb-tab:hover{color:#fff;background:rgba(255,255,255,.1)}
+.tb-tab.on{background:rgba(255,255,255,.15);color:#fff;font-weight:500}
+.btn-new{background:#fff;color:var(--G);border:none;padding:6px 14px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer}
+.btn-new:hover{background:#e8f0e8}
+
+/* ── STATUS BAR ─────────────────────────────────────── */
+.status-bar{background:var(--B2);border-bottom:1px solid #b5d4f4;padding:7px 20px;font-size:12px;color:var(--B);display:flex;align-items:center;gap:8px}
+.status-bar.error{background:var(--R2);border-color:#fca5a5;color:var(--R)}
+.status-bar.ok{background:var(--G3);border-color:#86efac;color:var(--G2)}
+.spinner{width:14px;height:14px;border:2px solid rgba(30,58,95,.2);border-top-color:var(--B);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── ALERT ──────────────────────────────────────────── */
+.alert-bar{background:var(--A2);border-bottom:1px solid var(--A3);padding:8px 20px;font-size:12px;color:var(--A);display:flex;align-items:center;gap:8px}
+
+/* ── SUMMARY ────────────────────────────────────────── */
+.sumrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:14px 20px}
+.sc{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r2);padding:11px 14px}
+.sc-lbl{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+.sc-val{font-size:22px;font-weight:500;font-family:'DM Mono',monospace;margin:3px 0 1px}
+.sc-sub{font-size:11px;color:var(--ink3)}
+.sc.warn .sc-lbl,.sc.warn .sc-sub{color:var(--A)}
+.sc.warn{border-color:var(--A3);background:var(--A2)}
+.sc.warn .sc-val{color:var(--A)}
+
+/* ── FILTER ROW ─────────────────────────────────────── */
+.frow{display:flex;align-items:center;gap:4px;padding:0 20px 12px;flex-wrap:wrap}
+.ftab{padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--bdr);background:var(--surf);color:var(--ink2)}
+.ftab:hover{color:var(--ink);border-color:var(--bdr2)}
+.ftab.on{background:var(--G);color:#fff;border-color:var(--G)}
+.srch{margin-left:auto;padding:5px 10px;border:1px solid var(--bdr2);border-radius:var(--r);font-size:12px;background:var(--surf);width:170px}
+.srch:focus{outline:none;border-color:var(--G2)}
+
+/* ── CARDS ──────────────────────────────────────────── */
+.clist{padding:0 20px 24px;display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r2);overflow:hidden}
+.card.overdue{border-color:#fca5a5}
+.card-hd{display:flex;align-items:center;gap:10px;padding:11px 15px;cursor:pointer;user-select:none}
+.c-id{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:var(--G);min-width:88px;flex-shrink:0}
+.c-buyer{font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-comm{font-size:11px;color:var(--ink2);min-width:110px;flex-shrink:0}
+.c-vol{font-size:12px;font-family:'DM Mono',monospace;color:var(--ink2);min-width:80px;flex-shrink:0}
+.badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;flex-shrink:0}
+.warn-tag{font-size:11px;padding:2px 8px;border-radius:4px;background:var(--R2);color:var(--R);flex-shrink:0}
+.chev{color:var(--ink3);font-size:13px;transition:transform .2s;flex-shrink:0;margin-left:4px}
+.chev.open{transform:rotate(180deg)}
+.card-body{border-top:1px solid var(--bdr);background:var(--grey)}
+
+/* ── PIPELINE VISUAL ────────────────────────────────── */
+.pipe-visual{display:flex;align-items:flex-start;padding:14px 16px 6px;overflow-x:auto;gap:0}
+.pstep{display:flex;flex-direction:column;align-items:center;flex:1;min-width:58px;position:relative}
+.pstep-line{position:absolute;top:10px;left:50%;right:-50%;height:2px;z-index:0}
+.pstep:last-child .pstep-line{display:none}
+.pstep-circle{width:20px;height:20px;border-radius:50%;border:2px solid var(--bdr2);background:var(--surf);display:flex;align-items:center;justify-content:center;z-index:1;position:relative;flex-shrink:0}
+.pstep-circle svg{width:9px;height:9px}
+.pstep.done .pstep-circle{background:var(--G);border-color:var(--G)}
+.pstep.done .pstep-line{background:var(--G)}
+.pstep.cur .pstep-circle{border-color:var(--G);box-shadow:0 0 0 3px var(--G3)}
+.pstep.cur .pstep-line,.pstep.pend .pstep-line{background:var(--bdr2)}
+.pstep-lbl{font-size:9px;color:var(--ink3);margin-top:4px;text-align:center;line-height:1.3;max-width:56px}
+.pstep.done .pstep-lbl{color:var(--G2)}
+.pstep.cur .pstep-lbl{color:var(--G);font-weight:500}
+
+/* ── EDIT HEADER ────────────────────────────────────── */
+.edit-hd{display:flex;align-items:flex-end;gap:10px;padding:8px 14px;border-top:1px solid var(--bdr);flex-wrap:wrap}
+.hf{display:flex;flex-direction:column;gap:2px}
+.hf label{font-size:10px;color:var(--ink2);letter-spacing:.05em;text-transform:uppercase}
+.hf input{padding:5px 8px;border:1px solid var(--bdr2);border-radius:var(--r);font-size:12px;background:#fff}
+.hf input:focus{outline:none;border-color:var(--G2)}
+.btn-upd{padding:5px 12px;border-radius:var(--r);border:none;background:var(--G);color:#fff;font-size:11px;cursor:pointer;align-self:flex-end}
+.btn-upd:hover{background:var(--G2)}
+.btn-del-ship{padding:5px 10px;border-radius:var(--r);font-size:11px;border:1px solid #fca5a5;background:#fff;color:var(--R);cursor:pointer;align-self:flex-end;margin-left:auto}
+.btn-del-ship:hover{background:var(--R2)}
+.saving-dot{font-size:11px;color:var(--G2);align-self:flex-end;display:none}
+
+/* ── STAGE TABLE ────────────────────────────────────── */
+.stg-wrap{padding:4px 14px 14px}
+.tip{font-size:11px;color:var(--ink3);padding:6px 0 10px;font-style:italic}
+.stg-table{width:100%;border-collapse:collapse;font-size:12px}
+.stg-table th{text-align:left;padding:7px 8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);border-bottom:1px solid var(--bdr);font-weight:500;background:var(--surf)}
+.stg-table td{padding:7px 8px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+.stg-table tr:last-child td{border-bottom:none}
+.stg-table tr:hover td{background:#fafaf8}
+.stg-table tr.done-row td{background:#fafffe}
+.stg-table tr.cur-row td{background:#f0f8f0}
+.editable{cursor:pointer;border-radius:3px;padding:1px 3px}
+.editable:hover{background:var(--bdr)}
+.inp-inline{padding:3px 6px;border:1px solid var(--G2);border-radius:4px;font-size:12px;background:#fff}
+.inp-inline:focus{outline:none}
+.chk{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--bdr2);background:var(--surf);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chk.on{background:var(--G);border-color:var(--G)}
+.chk svg{width:9px;height:9px}
+
+/* ── ADD FORM ───────────────────────────────────────── */
+.add-form{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r2);padding:16px;margin:0 20px 14px}
+.add-form-title{font-size:12px;font-weight:500;margin-bottom:10px}
+.fg-row{display:flex;flex-wrap:wrap;gap:8px}
+.fg{display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
+.fg label{font-size:10px;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+.fg input,.fg select{padding:6px 9px;border:1px solid var(--bdr2);border-radius:var(--r);font-size:12px;background:#fff}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--G2)}
+.form-btns{display:flex;gap:8px;margin-top:10px}
+.btn-save{padding:6px 16px;border-radius:var(--r);border:none;background:var(--G);color:#fff;font-size:12px;font-weight:500;cursor:pointer}
+.btn-save:hover{background:var(--G2)}
+.btn-cancel{padding:6px 14px;border-radius:var(--r);border:1px solid var(--bdr2);background:none;color:var(--ink2);font-size:12px;cursor:pointer}
+
+/* ── SETTINGS ───────────────────────────────────────── */
+.settings-wrap{padding:20px}
+.settings-title{font-size:15px;font-weight:500;margin-bottom:4px}
+.settings-sub{font-size:12px;color:var(--ink2);margin-bottom:14px}
+.settings-note{background:var(--B2);border:1px solid #b5d4f4;border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--B);margin-bottom:14px}
+.stage-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.stage-item{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r2);display:flex;align-items:center;gap:10px;padding:10px 14px}
+.stage-num{font-size:11px;font-family:'DM Mono',monospace;color:var(--ink3);min-width:20px;text-align:right;flex-shrink:0}
+.stage-name-inp{flex:1;padding:6px 10px;border:1px solid var(--bdr2);border-radius:var(--r);font-size:13px;background:#fff;font-weight:500;max-width:140px}
+.stage-name-inp:focus{outline:none;border-color:var(--G2)}
+.stage-desc-inp{flex:2;padding:6px 10px;border:1px solid var(--bdr2);border-radius:var(--r);font-size:12px;background:#fff}
+.stage-desc-inp:focus{outline:none;border-color:var(--G2)}
+.stage-actions{display:flex;gap:4px;flex-shrink:0}
+.btn-icon{width:28px;height:28px;border-radius:var(--r);border:1px solid var(--bdr2);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink2);font-size:14px}
+.btn-icon:hover{background:var(--grey)}
+.btn-icon.danger:hover{background:var(--R2);color:var(--R);border-color:#fca5a5}
+.btn-icon.up:hover{background:var(--G3);color:var(--G);border-color:var(--G)}
+.add-stage-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.add-stage-inp{flex:1;padding:8px 12px;border:1px solid var(--bdr2);border-radius:var(--r);font-size:13px;background:#fff;min-width:150px}
+.add-stage-inp:focus{outline:none;border-color:var(--G2)}
+.btn-add-stage{padding:8px 16px;border-radius:var(--r);border:none;background:var(--G);color:#fff;font-size:12px;font-weight:500;cursor:pointer}
+.btn-save-stages{padding:8px 20px;border-radius:var(--r);border:none;background:var(--G);color:#fff;font-size:13px;font-weight:500;cursor:pointer;margin-top:14px}
+
+/* ── MISC ───────────────────────────────────────────── */
+.empty{text-align:center;padding:40px;color:var(--ink3)}
+.skeleton{height:60px;background:linear-gradient(90deg,var(--bdr) 25%,var(--bdr2) 50%,var(--bdr) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:var(--r2)}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  ⚠️  GANTI URL INI dengan URL Web App kamu dari Apps Script
+//      Format: https://script.google.com/macros/s/XXXXX.../exec
+// ════════════════════════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbxnp5nrLneihKEE01qB9DXRAh-GKjBBfCm9NY-r5-X8gmMJY5URsw5juUlO_AS7VUgy/exec';
+
+// ── STATE ────────────────────────────────────────────────────────
+let STAGES = [];
+let ships  = [];
+let view         = 'shipments';
+let expanded     = {};
+let editCell     = {};
+let activeFilter = 'all';
+let searchQ      = '';
+let showAdd      = false;
+let statusMsg    = { type: 'loading', text: 'Memuat data dari Google Sheets...' };
+let stgIdCounter = 100;
+
+// ── API HELPERS ──────────────────────────────────────────────────
+async function apiGet(action) {
+  const res = await fetch(`${API_URL}?action=${action}`);
+  return res.json();
+}
+
+async function apiPost(body) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function loadAll() {
+  statusMsg = { type: 'loading', text: 'Memuat data...' };
+  render();
+  try {
+    const data = await apiGet('getAll');
+    if (data.error) throw new Error(data.error);
+    STAGES = data.stages;
+    ships  = data.ships;
+    syncStages();
+    statusMsg = { type: 'ok', text: 'Data berhasil dimuat — ' + new Date().toLocaleTimeString('id-ID') };
+    render();
+    // Auto-hide status after 3s
+    setTimeout(() => { statusMsg = null; render(); }, 3000);
+  } catch(e) {
+    statusMsg = { type: 'error', text: 'Gagal memuat data: ' + e.message + '. Pastikan URL Apps Script sudah benar dan sudah di-deploy.' };
+    render();
+  }
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────
+const today   = () => new Date().toISOString().split('T')[0];
+const fmtD    = d => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+const stgIdx  = id => STAGES.findIndex(s => s.stageId === id);
+const checkSVG = `<svg viewBox="0 0 9 9" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,4.5 3.5,7 7.5,2"/></svg>`;
+
+function getCur(ship) {
+  for (let i = 0; i < STAGES.length; i++) {
+    const st = ship.stages[STAGES[i].stageId];
+    if (!st || !st.done) return STAGES[i].stageId;
+  }
+  return STAGES[STAGES.length - 1].stageId;
+}
+
+function getStatus(ship) {
+  const lastId = STAGES.length ? STAGES[STAGES.length - 1].stageId : null;
+  if (lastId && ship.stages[lastId] && ship.stages[lastId].done)
+    return { lbl: 'Lunas', c: '#1a3a2a', bg: '#e1f0e8' };
+  if (ship.alertMsg)
+    return { lbl: 'Perlu Tindakan', c: '#7c4f0a', bg: '#fef3c7' };
+  const i = stgIdx(getCur(ship));
+  if (i <= 1)               return { lbl: 'Persiapan', c: '#1e3a5f', bg: '#dbeafe' };
+  if (i < STAGES.length - 3) return { lbl: 'Dalam Proses', c: '#1a3a2a', bg: '#e1f0e8' };
+  return { lbl: 'Penagihan', c: '#7c4f0a', bg: '#fef3c7' };
+}
+
+function syncStages() {
+  ships.forEach(ship => {
+    STAGES.forEach(st => {
+      if (!ship.stages[st.stageId])
+        ship.stages[st.stageId] = { done: false, date: '', note: '' };
+    });
+  });
+}
+
+// ── SHIPMENT ACTIONS ─────────────────────────────────────────────
+async function toggleChk(shipId, stageId) {
+  const ship = ships.find(x => x.shipId === shipId);
+  const st   = ship.stages[stageId];
+  st.done    = !st.done;
+  if (st.done && !st.date) st.date = today();
+  render();
+  await apiPost({ action: 'updateStageDetail', data: { shipId, stageId, done: st.done, date: st.date, note: st.note } });
+}
+
+function startEdit(k) { editCell[k] = true; render(); }
+
+async function stopEdit(k, shipId, stageId, field, val) {
+  if (val !== undefined && shipId && stageId) {
+    const ship = ships.find(x => x.shipId === shipId);
+    ship.stages[stageId][field] = val;
+    await apiPost({ action: 'updateStageDetail', data: { shipId, stageId, ...ship.stages[stageId] } });
+  }
+  delete editCell[k];
+  render();
+}
+
+async function updateHeader(shipId) {
+  const ship = ships.find(x => x.shipId === shipId);
+  ['buyer','commodity','volume','alertMsg'].forEach(f => {
+    const el = document.getElementById(`hd_${shipId}_${f}`);
+    if (el) ship[f] = el.value;
+  });
+  render();
+  await apiPost({ action: 'updateShipment', data: ship });
+}
+
+async function deleteShip(id) {
+  if (!confirm('Hapus shipment ' + id + '? Data ini tidak bisa dikembalikan.')) return;
+  ships = ships.filter(s => s.shipId !== id);
+  delete expanded[id];
+  render();
+  await apiPost({ action: 'deleteShipment', shipId: id });
+}
+
+async function addShip() {
+  const id    = (document.getElementById('ni').value || '').trim();
+  const buyer = (document.getElementById('nb').value || '').trim();
+  if (!id || !buyer) { alert('ID dan Buyer wajib diisi.'); return; }
+  const startId  = document.getElementById('ns').value;
+  const startIdx = stgIdx(startId);
+  const newS = {
+    shipId: id, buyer, alertMsg: '',
+    commodity: document.getElementById('nc').value,
+    volume:    document.getElementById('nv').value || '—',
+    stages: {}
+  };
+  STAGES.forEach((st, i) => {
+    newS.stages[st.stageId] = { done: i < startIdx, date: i < startIdx ? today() : '', note: '' };
+  });
+  ships.unshift(newS);
+  showAdd = false;
+  expanded[id] = true;
+  render();
+  // Save to Sheets
+  await apiPost({ action: 'addShipment', data: { shipId: id, buyer, commodity: newS.commodity, volume: newS.volume, alertMsg: '' } });
+  // Save initial stage details
+  for (let i = 0; i < startIdx; i++) {
+    const st = STAGES[i];
+    await apiPost({ action: 'updateStageDetail', data: { shipId: id, stageId: st.stageId, done: true, date: today(), note: '' } });
+  }
+}
+
+function filtered() {
+  const lastId = STAGES.length ? STAGES[STAGES.length - 1].stageId : null;
+  return ships.filter(s => {
+    const done  = lastId && s.stages[lastId] && s.stages[lastId].done;
+    const cur   = getCur(s);
+    const idx   = stgIdx(cur);
+    const ok =
+      activeFilter === 'all' ||
+      (activeFilter === 'active'  && !done) ||
+      (activeFilter === 'billing' && idx >= STAGES.length - 3 && !done) ||
+      (activeFilter === 'alert'   && !!s.alertMsg) ||
+      (activeFilter === 'done'    && done);
+    const sq = !searchQ || s.shipId.toLowerCase().includes(searchQ) || s.buyer.toLowerCase().includes(searchQ);
+    return ok && sq;
+  });
+}
+
+// ── STAGE SETTINGS ───────────────────────────────────────────────
+function updateStageName(id, val) { const s = STAGES.find(x => x.stageId === id); if (s) s.label = val; }
+function updateStageDesc(id, val) { const s = STAGES.find(x => x.stageId === id); if (s) s.desc  = val; }
+function moveStage(idx, dir) {
+  const ni = idx + dir;
+  if (ni < 0 || ni >= STAGES.length) return;
+  [STAGES[idx], STAGES[ni]] = [STAGES[ni], STAGES[idx]];
+  render();
+}
+function deleteStage(id) {
+  if (STAGES.length <= 2) { alert('Minimal 2 tahap harus ada.'); return; }
+  if (!confirm('Hapus tahap ini?')) return;
+  STAGES = STAGES.filter(s => s.stageId !== id);
+  ships.forEach(ship => delete ship.stages[id]);
+  render();
+}
+function addStage() {
+  const name = (document.getElementById('new-stage-name').value || '').trim();
+  if (!name) return;
+  const id = 's' + stgIdCounter++;
+  STAGES.push({ stageId: id, label: name, desc: document.getElementById('new-stage-desc').value.trim() || name });
+  syncStages();
+  document.getElementById('new-stage-name').value = '';
+  document.getElementById('new-stage-desc').value = '';
+  render();
+}
+async function saveStages() {
+  statusMsg = { type: 'loading', text: 'Menyimpan konfigurasi tahapan...' };
+  render();
+  const res = await apiPost({ action: 'saveStages', stages: STAGES });
+  if (res.error) {
+    statusMsg = { type: 'error', text: 'Gagal simpan: ' + res.error };
+  } else {
+    statusMsg = { type: 'ok', text: 'Tahapan berhasil disimpan.' };
+    view = 'shipments';
+  }
+  render();
+  setTimeout(() => { statusMsg = null; render(); }, 3000);
+}
+
+// ── RENDER ───────────────────────────────────────────────────────
+function render() {
+  const lastId   = STAGES.length ? STAGES[STAGES.length - 1].stageId : null;
+  const alerts   = ships.filter(s => s.alertMsg).length;
+  const active   = ships.filter(s => !(lastId && s.stages[lastId] && s.stages[lastId].done)).length;
+  const billing  = ships.filter(s => { const i = stgIdx(getCur(s)); return i >= STAGES.length - 3 && !(lastId && s.stages[lastId] && s.stages[lastId].done); }).length;
+  const done     = ships.filter(s => lastId && s.stages[lastId] && s.stages[lastId].done).length;
+  const fs       = filtered();
+
+  let h = '';
+
+  // TOPBAR
+  h += `<div class="topbar">
+    <div style="display:flex;align-items:center;gap:0">
+      <div class="tb-brand">BKL Shipment Monitor <small>Niaga & Perencanaan</small></div>
+      <div class="tb-tabs" style="margin-left:16px">
+        <button class="tb-tab ${view==='shipments'?'on':''}" onclick="view='shipments';render()">Shipment</button>
+        <button class="tb-tab ${view==='settings'?'on':''}" onclick="view='settings';render()">⚙ Atur Tahapan</button>
+      </div>
+    </div>
+    <div class="tb-right">
+      <button class="btn-new" onclick="loadAll()" title="Refresh data dari Google Sheets">↻ Refresh</button>
+      ${view==='shipments'?`<button class="btn-new" onclick="showAdd=!showAdd;render()">${showAdd?'× Tutup':'+ Shipment Baru'}</button>`:''}
+    </div>
+  </div>`;
+
+  // STATUS BAR
+  if (statusMsg) {
+    const cls = statusMsg.type === 'error' ? 'error' : statusMsg.type === 'ok' ? 'ok' : '';
+    h += `<div class="status-bar ${cls}">
+      ${statusMsg.type === 'loading' ? '<div class="spinner"></div>' : ''}
+      ${statusMsg.text}
+    </div>`;
+  }
+
+  // ── SETTINGS VIEW ──────────────────────────────────────────────
+  if (view === 'settings') {
+    h += `<div class="settings-wrap">
+      <div class="settings-title">Atur Tahapan Shipment</div>
+      <div class="settings-sub">Tambah, hapus, ubah nama, atau ubah urutan tahapan. Klik "Simpan ke Google Sheets" agar perubahan permanen.</div>
+      <div class="settings-note">Urutan dari atas = urutan pipeline dari kiri ke kanan. ↑ ↓ untuk ubah urutan.</div>
+      <div class="stage-list">`;
+
+    STAGES.forEach((st, i) => {
+      h += `<div class="stage-item">
+        <div class="stage-num">${i + 1}</div>
+        <input class="stage-name-inp" value="${st.label}" placeholder="Nama singkat" oninput="updateStageName('${st.stageId}',this.value)"/>
+        <input class="stage-desc-inp" value="${st.desc}" placeholder="Deskripsi lengkap" oninput="updateStageDesc('${st.stageId}',this.value)"/>
+        <div class="stage-actions">
+          <button class="btn-icon up" onclick="moveStage(${i},-1)" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
+          <button class="btn-icon up" onclick="moveStage(${i},1)"  ${i===STAGES.length-1?'disabled style="opacity:.3"':''}>↓</button>
+          <button class="btn-icon danger" onclick="deleteStage('${st.stageId}')">×</button>
+        </div>
+      </div>`;
+    });
+
+    h += `</div>
+      <div class="add-stage-row">
+        <input id="new-stage-name" class="add-stage-inp" placeholder="Nama tahap baru (contoh: NOR, Hatch Survey...)"/>
+        <input id="new-stage-desc" class="add-stage-inp" placeholder="Deskripsi lengkap (opsional)" style="max-width:220px"/>
+        <button class="btn-add-stage" onclick="addStage()">+ Tambah</button>
+      </div>
+      <button class="btn-save-stages" onclick="saveStages()">✓ Simpan ke Google Sheets</button>
+    </div>`;
+
+    document.getElementById('app').innerHTML = h;
+    return;
+  }
+
+  // ── SHIPMENTS VIEW ─────────────────────────────────────────────
+  if (alerts) h += `<div class="alert-bar">⚠ <b>${alerts} shipment</b> butuh tindakan segera.</div>`;
+
+  h += `<div class="sumrow">
+    <div class="sc"><div class="sc-lbl">Total</div><div class="sc-val">${ships.length}</div><div class="sc-sub">semua shipment</div></div>
+    <div class="sc"><div class="sc-lbl">Aktif</div><div class="sc-val">${active}</div><div class="sc-sub">sedang berjalan</div></div>
+    <div class="sc"><div class="sc-lbl">Penagihan</div><div class="sc-val">${billing}</div><div class="sc-sub">invoice/payment</div></div>
+    <div class="sc ${alerts?'warn':''}"><div class="sc-lbl">Perlu Tindakan</div><div class="sc-val">${alerts}</div><div class="sc-sub">butuh follow-up</div></div>
+    <div class="sc"><div class="sc-lbl">Lunas</div><div class="sc-val">${done}</div><div class="sc-sub">selesai</div></div>
+  </div>`;
+
+  const tabs = [{k:'all',l:'Semua',n:ships.length},{k:'active',l:'Aktif',n:active},{k:'billing',l:'Penagihan',n:billing},{k:'alert',l:'Perlu Tindakan',n:alerts},{k:'done',l:'Lunas',n:done}];
+  h += `<div class="frow">`;
+  tabs.forEach(t => h += `<div class="ftab ${activeFilter===t.k?'on':''}" onclick="activeFilter='${t.k}';render()">${t.l} (${t.n})</div>`);
+  h += `<input class="srch" placeholder="Cari ID / buyer..." oninput="searchQ=this.value.toLowerCase();render()" value="${searchQ}"/></div>`;
+
+  if (showAdd) {
+    h += `<div class="add-form"><div class="add-form-title">Tambah shipment baru</div>
+    <div class="fg-row">
+      <div class="fg"><label>ID Shipment</label><input id="ni" placeholder="BESA002"/></div>
+      <div class="fg"><label>Buyer</label><input id="nb" placeholder="PT. Energi ..."/></div>
+      <div class="fg"><label>Komoditas</label><select id="nc"><option>Coal (Steam) 5500 GAR</option><option>Coal (Steam) 4200 GAR</option><option>Coal (Coking) 6700 GAR</option><option>Nickel Ore</option><option>Bauxite</option><option>Other</option></select></div>
+      <div class="fg"><label>Volume</label><input id="nv" placeholder="7,500 MT"/></div>
+      <div class="fg"><label>Mulai dari tahap</label><select id="ns">${STAGES.map(s=>`<option value="${s.stageId}">${s.label}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-btns">
+      <button class="btn-save" onclick="addShip()">Simpan</button>
+      <button class="btn-cancel" onclick="showAdd=false;render()">Batal</button>
+    </div></div>`;
+  }
+
+  h += `<div class="clist">`;
+  if (!fs.length) h += `<div class="empty">Tidak ada shipment yang cocok.</div>`;
+
+  fs.forEach(ship => {
+    const st     = getStatus(ship);
+    const isOpen = expanded[ship.id || ship.shipId];
+    const id     = ship.shipId;
+    const cur    = getCur(ship);
+    const curIdx = stgIdx(cur);
+
+    h += `<div class="card ${ship.alertMsg?'overdue':''}">
+    <div class="card-hd" onclick="expanded['${id}']=!expanded['${id}'];render()">
+      <div class="c-id">${id}</div>
+      <div class="c-buyer">${ship.buyer}</div>
+      <div class="c-comm">${ship.commodity}</div>
+      <div class="c-vol">${ship.volume}</div>
+      <span class="badge" style="background:${st.bg};color:${st.c}">${st.lbl}</span>
+      ${ship.alertMsg?`<span class="warn-tag">⚠ ${ship.alertMsg}</span>`:''}
+      <div class="chev ${isOpen?'open':''}">▾</div>
+    </div>`;
+
+    if (isOpen) {
+      h += `<div class="card-body">`;
+
+      // Pipeline visual
+      h += `<div class="pipe-visual">`;
+      STAGES.forEach((stage, i) => {
+        const sd  = ship.stages[stage.stageId] || { done: false };
+        const cls = sd.done ? 'done' : i === curIdx ? 'cur' : 'pend';
+        h += `<div class="pstep ${cls}">
+          ${i < STAGES.length - 1 ? '<div class="pstep-line"></div>' : ''}
+          <div class="pstep-circle">${sd.done ? checkSVG : ''}</div>
+          <div class="pstep-lbl">${stage.label}</div>
+        </div>`;
+      });
+      h += `</div>`;
+
+      // Edit header
+      h += `<div class="edit-hd">
+        <div class="hf"><label>Buyer</label><input id="hd_${id}_buyer" value="${ship.buyer}" style="width:160px"/></div>
+        <div class="hf"><label>Komoditas</label><input id="hd_${id}_commodity" value="${ship.commodity}" style="width:150px"/></div>
+        <div class="hf"><label>Volume</label><input id="hd_${id}_volume" value="${ship.volume}" style="width:90px"/></div>
+        <div class="hf"><label>Alert (kosongkan jika beres)</label><input id="hd_${id}_alertMsg" value="${ship.alertMsg||''}" style="width:200px"/></div>
+        <button class="btn-upd" onclick="updateHeader('${id}')">Simpan</button>
+        <button class="btn-del-ship" onclick="deleteShip('${id}')">Hapus</button>
+      </div>`;
+
+      // Stage table
+      h += `<div class="stg-wrap">
+        <div class="tip">Centang ✓ untuk toggle selesai · Klik tanggal atau catatan untuk edit langsung · Perubahan otomatis tersimpan ke Google Sheets</div>
+        <table class="stg-table">
+          <thead><tr><th style="width:28px"></th><th style="width:160px">Tahap</th><th style="width:130px">Tanggal</th><th>Catatan</th><th style="width:110px">Status</th></tr></thead>
+          <tbody>`;
+
+      STAGES.forEach((stage, i) => {
+        const sd     = ship.stages[stage.stageId] || { done: false, date: '', note: '' };
+        const rowCls = sd.done ? 'done-row' : i === curIdx ? 'cur-row' : '';
+        const kD     = `${id}__${stage.stageId}__date`;
+        const kN     = `${id}__${stage.stageId}__note`;
+
+        const dateCell = editCell[kD]
+          ? `<input type="date" class="inp-inline" style="width:130px" value="${sd.date||''}"
+               onblur="stopEdit('${kD}','${id}','${stage.stageId}','date',this.value)"
+               onkeydown="if(event.key==='Enter'||event.key==='Escape')stopEdit('${kD}','${id}','${stage.stageId}','date',this.value)"
+               autofocus/>`
+          : `<span class="editable" onclick="startEdit('${kD}')">${sd.date ? fmtD(sd.date) : '<span style="color:var(--ink3)">— klik isi</span>'}</span>`;
+
+        const noteCell = editCell[kN]
+          ? `<input class="inp-inline" style="width:100%;max-width:300px" value="${(sd.note||'').replace(/"/g,'&quot;')}" placeholder="Tambah catatan..."
+               onblur="stopEdit('${kN}','${id}','${stage.stageId}','note',this.value)"
+               onkeydown="if(event.key==='Enter')stopEdit('${kN}','${id}','${stage.stageId}','note',this.value)"
+               autofocus/>`
+          : `<span class="editable" onclick="startEdit('${kN}')">${sd.note || '<span style="color:var(--ink3)">— klik isi</span>'}</span>`;
+
+        const statusTxt = sd.done
+          ? `<span style="font-size:11px;color:var(--G2);font-weight:500">✓ Selesai</span>`
+          : i === curIdx
+          ? `<span style="font-size:11px;color:var(--G);font-weight:500">← Tahap ini</span>`
+          : `<span style="font-size:11px;color:var(--ink3)">Menunggu</span>`;
+
+        h += `<tr class="${rowCls}">
+          <td><div class="chk ${sd.done?'on':''}" onclick="toggleChk('${id}','${stage.stageId}')">${sd.done?checkSVG:''}</div></td>
+          <td style="font-weight:${i===curIdx?500:400};color:${i===curIdx?'var(--G)':'var(--ink)'}">${stage.desc}</td>
+          <td>${dateCell}</td>
+          <td>${noteCell}</td>
+          <td>${statusTxt}</td>
+        </tr>`;
+      });
+
+      h += `</tbody></table></div></div>`;
+    }
+    h += `</div>`;
+  });
+
+  h += `</div>`;
+  document.getElementById('app').innerHTML = h;
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+if (API_URL === 'PASTE_URL_APPS_SCRIPT_KAMU_DI_SINI') {
+  statusMsg = { type: 'error', text: '⚠ URL belum diisi! Buka file index.html, cari variabel API_URL di baris ~95, dan paste URL Apps Script kamu di sana.' };
+  STAGES = [
+    {stageId:'s1',label:'Kontrak',desc:'Kontrak Ditandatangani'},
+    {stageId:'s2',label:'Laycan',desc:'Laycan Ditetapkan'},
+    {stageId:'s3',label:'Loading',desc:'Loading Kapal'},
+    {stageId:'s4',label:'Draft Survey',desc:'Draft Survey Selesai'},
+    {stageId:'s5',label:'CoA',desc:'CoA Terbit'},
+    {stageId:'s6',label:'B/L',desc:'B/L Terbit'},
+    {stageId:'s7',label:'Inv. T1',desc:'Invoice Termin 1'},
+    {stageId:'s8',label:'Inv. Final',desc:'Invoice Final'},
+    {stageId:'s9',label:'Payment',desc:'Payment Lunas'},
+  ];
+  render();
+} else {
+  render();
+  loadAll();
+}
+</script>
+</body>
+</html>
