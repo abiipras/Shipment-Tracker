@@ -465,9 +465,9 @@ function render() {
   if (showAdd) {
     h += `<div class="add-form"><div class="add-form-title">Tambah shipment baru</div>
     <div class="fg-row">
-      <div class="fg"><label>ID Shipment</label><input id="ni" placeholder="BESA002"/></div>
-      <div class="fg"><label>Buyer</label><input id="nb" placeholder="PT. Energi ..."/></div>
-      <div class="fg"><label>Komoditas</label><select id="nc"><option>Coal (Steam) 5500 GAR</option><option>Coal (Steam) 4200 GAR</option><option>Coal (Coking) 6700 GAR</option><option>Nickel Ore</option><option>Bauxite</option><option>Other</option></select></div>
+      <div class="fg"><label>ID Shipment</label><input id="ni" placeholder="BKL001"/></div>
+      <div class="fg"><label>Buyer</label><input id="nb" placeholder="PT..."/></div>
+      <div class="fg"><label>Komoditas</label><select id="nc"><option>Coal (Steam) 4200 GAR</option><option>Coal (Steam) >4500 GAR</option></select></div>
       <div class="fg"><label>Volume</label><input id="nv" placeholder="7,500 MT"/></div>
       <div class="fg"><label>Mulai dari tahap</label><select id="ns">${STAGES.map(s=>`<option value="${s.stageId}">${s.label}</option>`).join('')}</select></div>
     </div>
